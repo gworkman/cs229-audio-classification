@@ -13,8 +13,8 @@ CHUNK_SIZE = 1024
 def get_spectrogram(path: Path):
     audio, sr = librosa.load(path, sr=None)
     audio = audio[10 * CHUNK_SIZE:-10 * CHUNK_SIZE]
-    mfccs = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=128, fmax=8000)
-    return mfccs
+    spectrogram = librosa.feature.melspectrogram(y=audio, sr=sr, n_mels=128, fmax=8000)
+    return librosa.power_to_db(spectrogram)
 
 
 data_path = Path('../data')

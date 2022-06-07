@@ -21,20 +21,16 @@ for n_mfccs in [20, 30, 40, 50, 60]:
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8)
 
-    model = LogisticRegression(penalty='l2', C=0.0001, multi_class='ovr')
+    model = LogisticRegression(penalty='l2', multi_class='ovr')
     model.fit(X_train, y_train)
-    y_hat = model.predict(X_train)
-
-    train_accuracy = np.mean(y_train == y_hat)
-
     y_hat = model.predict(X_test)
 
     test_accuracy = np.mean(y_test == y_hat)
 
-    print(f'Train accuracy: {train_accuracy:0.2f} Test accuracy: {test_accuracy:0.2f}')
+    print(f'Test accuracy: {test_accuracy:0.2f}')
 
     fig, ax = plt.subplots()
     display_labels = [f'Tone {i}' for i in np.arange(4) + 1]
     cm = ConfusionMatrixDisplay.from_predictions(y_test, y_hat, display_labels=display_labels, ax=ax)
-    plt.title(f'Confusion for Logistic Regression, N_MFCCs = {n_mfccs} (Test accuracy: {test_accuracy:0.2f})')
+    plt.title(f'Confusion for Logistic Regression, N_MFCCs = {n_mfccs} (test accuracy: {test_accuracy:0.2f})')
     plt.savefig(f'../images/logistic_regression_confusion_nmfccs={n_mfccs}.png')

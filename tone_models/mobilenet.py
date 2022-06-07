@@ -12,6 +12,8 @@ if __name__ == '__main__':
     df = pd.read_pickle('../data/preprocessed/spectrogram.pkl').explode('spectrogram')
     x, y = np.array(df['spectrogram'].to_list()), df['tone'].to_numpy() - 1
 
+    x = np.repeat(x[..., np.newaxis], 3, -1)
+
     x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=0.8, shuffle=True)
     x_test, x_validation, y_test, y_validation = train_test_split(x_test, y_test, train_size=0.5, shuffle=True)
 
@@ -22,17 +24,12 @@ if __name__ == '__main__':
     num_labels = 4
 
     model = models.Sequential([
-        layers.Input(shape=(128, 141, 1)),
         layers.RandomCrop(128, 128),
-        layers.Conv2D(32, 3, activation='relu'),
-        layers.Conv2D(64, 3, activation='relu'),
-        layers.MaxPooling2D(),
-        layers.Dropout(0.25),
+        tf.keras.applications.MobileNetV2((128, 128, 3), include_top=False),
+        layers.AveragePooling2D(),
         layers.Flatten(),
-        layers.Dense(128, activation='relu'),
         layers.Dropout(0.5),
-        layers.Dense(num_labels),
-        layers.Softmax()
+        layers.Dense(4, 'softmax')
     ])
 
     model.compile(
@@ -68,8 +65,8 @@ if __name__ == '__main__':
     ax[1].set_ylim([0, 1.0])
     ax[1].set_title('Training and Validation Loss')
     ax[1].set_xlabel('epoch')
-    plt.suptitle('CNN Training Performance (Tones)')
-    plt.savefig('../images/tones_cnn_training.png')
+    plt.suptitle('MobileNetV2 Training Performance (Tones)')
+    plt.savefig('../images/tones_mobilenet_training.png')
 
     y_hat = tf.argmax(model.predict(test_ds), axis=1)
     test_accuracy = np.mean(y_hat == y_test)
@@ -77,7 +74,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     display_labels = [f'Tone {i}' for i in np.arange(4) + 1]
     cm = ConfusionMatrixDisplay.from_predictions(y_test, y_hat, display_labels=display_labels, ax=ax)
-    plt.title(f'Confusion for CNN on Mel Spectrogram features (test accuracy: {test_accuracy:0.2f})')
-    plt.savefig(f'../images/cnn_confusion_tones.png')
+    plt.title(f'Confusion for MobileNetV2 on Mel Spectrogram features (test accuracy: {test_accuracy:0.2f})')
+    plt.savefig(f'../images/mobilenet_confusion_tones.png')
 
-    model.save('./cnn-tones')
+    model.save('./mobilenet-tones')

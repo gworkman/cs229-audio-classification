@@ -5,11 +5,10 @@ import numpy as np
 from pathlib import Path
 
 SAMPLE_RATE = 44100
-NOISE_SIGMA = 0.05
 
 
-def add_guassian_noise(audio: np.ndarray):
-    return audio + np.random.normal(0, NOISE_SIGMA, audio.shape)
+def add_guassian_noise(audio: np.ndarray, volume: float):
+    return audio + np.random.normal(0, volume, audio.shape)
 
 
 def add_random_ambient(audio: np.ndarray, volume: float):
@@ -25,8 +24,12 @@ audio_path = data_path / 'audio'
 
 for file_path in (audio_path / 'raw').glob('*.wav'):
     original_audio, _sr = librosa.load(file_path, sr=SAMPLE_RATE)
-    augmented_noise = add_guassian_noise(original_audio)
-    augmented_ambient = add_random_ambient(original_audio, 0.8)
     sf.write(audio_path / 'augmented' / (file_path.stem + '_raw.wav'), original_audio, SAMPLE_RATE)
-    sf.write(audio_path / 'augmented' / (file_path.stem + '_noise.wav'), augmented_noise, SAMPLE_RATE)
-    sf.write(audio_path / 'augmented' / (file_path.stem + '_ambient.wav'), augmented_ambient, SAMPLE_RATE)
+
+    for i, noise in enumerate([0.01, 0.05, 0.075]):
+        augmented_noise = add_guassian_noise(original_audio, noise)
+        sf.write(audio_path / 'augmented' / (file_path.stem + f'_noise_{i}.wav'), augmented_noise, SAMPLE_RATE)
+
+    for i, volume in enumerate([0.5, 0.8, 1.0, 1.2, 1.5]):
+        augmented_ambient = add_random_ambient(original_audio, volume)
+        sf.write(audio_path / 'augmented' / (file_path.stem + f'_ambient_{i}.wav'), augmented_ambient, SAMPLE_RATE)

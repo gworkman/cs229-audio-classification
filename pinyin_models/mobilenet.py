@@ -1,50 +1,46 @@
 import tensorflow as tf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from keras import layers
 from keras import models
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
     df = pd.read_pickle('../data/preprocessed/spectrogram.pkl').explode('spectrogram')
-    x, y = np.array(df['spectrogram'].to_list()), df['tone'].to_numpy() - 1
+    x, y = np.array(df['spectrogram'].to_list()), pd.get_dummies(df['pinyin']).to_numpy()
+
+    x = np.repeat(x[..., np.newaxis], 3, -1)
+    n_classes = y.shape[1]
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=0.8, shuffle=True)
     x_test, x_validation, y_test, y_validation = train_test_split(x_test, y_test, train_size=0.5, shuffle=True)
 
     train_ds = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(32).cache()
-    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32)
+    test_ds = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(32).cache()
     validation_ds = tf.data.Dataset.from_tensor_slices((x_validation, y_validation)).batch(32).cache()
 
-    num_labels = 4
-
     model = models.Sequential([
-        layers.Input(shape=(128, 141, 1)),
         layers.RandomCrop(128, 128),
-        layers.Conv2D(32, 3, activation='relu'),
-        layers.Conv2D(64, 3, activation='relu'),
-        layers.MaxPooling2D(),
-        layers.Dropout(0.25),
+        tf.keras.applications.MobileNetV2((128, 128, 3), include_top=False),
+        layers.AveragePooling2D(),
         layers.Flatten(),
-        layers.Dense(128, activation='relu'),
         layers.Dropout(0.5),
-        layers.Dense(num_labels),
-        layers.Softmax()
+        layers.Dense(n_classes, 'softmax')
     ])
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
+        loss=tf.keras.losses.CategoricalCrossentropy(),
         metrics=['accuracy'],
     )
 
     history = model.fit(
         train_ds,
         validation_data=validation_ds,
-        epochs=20
+        epochs=30
     )
 
     acc = history.history['accuracy']
@@ -68,16 +64,17 @@ if __name__ == '__main__':
     ax[1].set_ylim([0, 1.0])
     ax[1].set_title('Training and Validation Loss')
     ax[1].set_xlabel('epoch')
-    plt.suptitle('CNN Training Performance (Tones)')
-    plt.savefig('../images/tones_cnn_training.png')
+    plt.suptitle('MobileNetV2 Training Performance (Pronunciations)')
+    plt.savefig('../images/pinyin_mobilenet_training.png')
 
     y_hat = tf.argmax(model.predict(test_ds), axis=1)
-    test_accuracy = np.mean(y_hat == y_test)
+    test_accuracy = np.mean(y_hat == np.argmax(y_test, axis=1))
 
     fig, ax = plt.subplots()
-    display_labels = [f'Tone {i}' for i in np.arange(4) + 1]
-    cm = ConfusionMatrixDisplay.from_predictions(y_test, y_hat, display_labels=display_labels, ax=ax)
-    plt.title(f'Confusion for CNN on Mel Spectrogram features (test accuracy: {test_accuracy:0.2f})')
-    plt.savefig(f'../images/cnn_confusion_tones.png')
+    cm = ConfusionMatrixDisplay.from_predictions(np.argmax(y_test, axis=1), y_hat, ax=ax, include_values=False)
+    plt.title(f'Confusion for MobileNetV2 on Mel Spectrogram features (test accuracy: {test_accuracy:0.2f})')
+    ax.get_yaxis().set_visible(False)
+    ax.get_xaxis().set_visible(False)
+    plt.savefig(f'../images/mobilenet_confusion_pinyin.png')
 
-    model.save('./cnn-tones')
+    model.save('./mobilenet-pinyin')
